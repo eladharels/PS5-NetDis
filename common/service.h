@@ -10,6 +10,7 @@
 
 typedef struct service_info {
   const char          *name;       // "fps60"; also names the log file
+  const char          *version;    // "1.0.0", from the repository's VERSION
   const char          *proc_name;  // "fps60.elf", as process lists show it
   const char          *data_dir;   // "/data/fps60"
   int                  port;       // web page port

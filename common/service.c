@@ -22,6 +22,7 @@ static pthread_mutex_t g_lock = PTHREAD_MUTEX_INITIALIZER;
 static service_info_t g_info;
 // Own copies of the strings in g_info; callers may pass temporary buffers.
 static char g_name[32], g_proc_name[32], g_data_dir[200], g_tile_tid[16];
+static char g_version[32];
 static int g_srv = -1;
 static int g_replaced;
 static int g_tile_installed;
@@ -67,10 +68,13 @@ void
 service_setup(const service_info_t *info) {
   g_info = *info;
   snprintf(g_name, sizeof(g_name), "%s", info->name);
+  snprintf(g_version, sizeof(g_version), "%s",
+           info->version && info->version[0] ? info->version : "dev");
   snprintf(g_proc_name, sizeof(g_proc_name), "%s", info->proc_name);
   snprintf(g_data_dir, sizeof(g_data_dir), "%s", info->data_dir);
   snprintf(g_tile_tid, sizeof(g_tile_tid), "%s", info->tile_tid);
   g_info.name = g_name;
+  g_info.version = g_version;
   g_info.proc_name = g_proc_name;
   g_info.data_dir = g_data_dir;
   g_info.tile_tid = g_tile_tid;
@@ -124,8 +128,8 @@ service_start(const service_info_t *info) {
 
   mkdir(info->data_dir, 0755);
   log_open(g_log_path);
-  LOGI("%s starting (built " __DATE__ " " __TIME__ "), pid %d, log file %s",
-       info->name, (int)getpid(), g_log_path);
+  LOGI("%s v%s starting (built " __DATE__ " " __TIME__ "), pid %d, log file %s",
+       info->name, info->version, (int)getpid(), g_log_path);
   sys_set_process_name(info->proc_name);
 
   // Before anything else, so two copies never run side by side.
@@ -198,7 +202,7 @@ service_announce(void) {
   pthread_mutex_unlock(&g_lock);
 
   LOGI("web page at %s", g_lan_url);
-  snprintf(msg, sizeof(msg), "%s %s: %s", g_info.name,
+  snprintf(msg, sizeof(msg), "%s v%s %s: %s", g_info.name, g_info.version,
            g_replaced ? "restarted" : "running", g_lan_url);
   sys_notify(msg);
 }
@@ -238,6 +242,8 @@ service_json(strbuf_t *sb) {
   pthread_mutex_lock(&g_lock);
   sb_puts(sb, "{\"name\":");
   sb_json_str(sb, g_info.name);
+  sb_puts(sb, ",\"version\":");
+  sb_json_str(sb, g_info.version);
   sb_printf(sb, ",\"build\":\"%s %s\",\"port\":%d,\"tile\":%s,\"tileTid\":",
             __DATE__, __TIME__, g_info.port,
             g_tile_installed ? "true" : "false");

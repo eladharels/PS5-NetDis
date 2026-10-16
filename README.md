@@ -4,6 +4,7 @@
 
 <p align="center">
   See every network port in use on a jailbroken PS5: who owns it, and who can reach it.<br>
+  <a href="https://github.com/eladharels/ps5-netdis/releases/latest"><img src="https://img.shields.io/github/v/release/eladharels/ps5-netdis?label=release" alt="latest release"></a>
   <a href="https://github.com/eladharels/ps5-netdis/actions/workflows/build.yml"><img src="https://github.com/eladharels/ps5-netdis/actions/workflows/build.yml/badge.svg" alt="build"></a>
 </p>
 
@@ -34,6 +35,7 @@ Use it to:
 - [Files on the console](#files-on-the-console)
 - [Limits](#limits)
 - [Troubleshooting](#troubleshooting)
+- [Versions and releases](#versions-and-releases)
 - [Building from source](#building-from-source)
 - [Credits](#credits)
 
@@ -48,15 +50,15 @@ Use it to:
 
 ## Quick start
 
-1. **Get `NetDis.elf`.** Download the `NetDis` artifact from the latest
-   [build](https://github.com/eladharels/ps5-netdis/actions/workflows/build.yml)
-   (you need to be signed in to GitHub), or [build it](#building-from-source).
+1. **Download `NetDis.elf`** from the
+   [latest release](https://github.com/eladharels/ps5-netdis/releases/latest)
+   (or the zip, which also has this README and the changelog).
 2. **Send it to the console** after jailbreaking:
    ```bash
    socat -t 99999999 - TCP:<ps5-ip>:9021 < NetDis.elf
    ```
    or pick it in Payload Manager. The console shows
-   *"NetDis running: http://&lt;ps5-ip&gt;:8070"*.
+   *"NetDis v1.0.0 running: http://&lt;ps5-ip&gt;:8070"*.
 3. **Open NetDis.** On the home screen, go to **Media** and open the
    **NetDis** tile. It opens the page in the console's browser. On a phone
    or computer on the same network, open `http://<ps5-ip>:8070` instead.
@@ -205,16 +207,46 @@ flowchart LR
 | *"port 8070 is busy"* | Another program uses port 8070, or the running NetDis didn't stop. Restart the console. |
 | The tile opens an error page | NetDis isn't running. Send `NetDis.elf` again (or add it to Payload Manager's autoload). |
 
+## Versions and releases
+
+Every version is published on the
+[Releases page](https://github.com/eladharels/ps5-netdis/releases) with:
+
+- `NetDis.elf`, ready to send to the console
+- `NetDis-vX.Y.Z.zip`, which holds the same ELF plus this README and the
+  changelog
+
+What changed in each version is in [CHANGELOG.md](CHANGELOG.md) and in each
+release's notes. The running version is shown in the start notification and
+under Settings > About.
+
+Version numbers follow [semantic versioning](https://semver.org):
+
+- **X:** goes up for changes that break your setup.
+- **Y:** goes up for new features.
+- **Z:** goes up for fixes.
+
+Publishing a new version (for maintainers):
+
+1. Put the new number in `VERSION`, and add a `## [X.Y.Z] - date` section at
+   the top of `CHANGELOG.md`.
+2. Merge the change into `main`.
+3. Tag the merge commit and push the tag: `git tag vX.Y.Z && git push origin vX.Y.Z`.
+4. The *release* workflow checks the tag matches `VERSION`, runs the tests,
+   builds with the pinned SDK (v0.44), and publishes the release with the
+   changelog section as its notes.
+
 ## Building from source
 
 ```bash
-sudo apt-get install make clang-18 lld-18 llvm-18 wget unzip python3 socat
-wget https://github.com/ps5-payload-dev/sdk/releases/latest/download/ps5-payload-sdk.zip
+sudo apt-get install make clang-18 lld-18 llvm-18 wget unzip zip python3 socat
+wget https://github.com/ps5-payload-dev/sdk/releases/download/v0.44/ps5-payload-sdk.zip
 sudo unzip -d /opt ps5-payload-sdk.zip
 export PS5_PAYLOAD_SDK=/opt/ps5-payload-sdk LLVM_CONFIG=/usr/bin/llvm-config-18
 
 make            # NetDis.elf
 make check      # host tests: no SDK or console needed
+make dist       # build/NetDis-vX.Y.Z.zip
 make test PS5_HOST=<ps5-ip>   # send NetDis.elf and stream its log
 ```
 
@@ -253,6 +285,7 @@ Actions > General > *Require approval for all external contributors*.
 | `netdis/` | Socket collection on the console (`platform_ps5.c`), the socket model and JSON (`sockets.c`), routes and cache (`routes.c`), the page (`ui.html`) and the icon (`assets/`) |
 | `common/` | Shared payload framework: web server, log, startup/replace/stop (`service.c`), notifications and home screen tile (`sys_ps5.c`), Logs and Settings tabs (`ui/`) |
 | `tools/` | `embed.py`: builds the page and icon into the ELF |
+| `.github/workflows/` | `build.yml` (tests and builds every push), `release.yml` (publishes a release for a version tag) |
 | `tests/` | Host tests |
 
 ## Credits
