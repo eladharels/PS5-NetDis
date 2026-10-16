@@ -1,0 +1,52 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
+  <defs>
+    <radialGradient id="bg" cx="50%" cy="38%" r="75%">
+      <stop offset="0" stop-color="#173a4a"/>
+      <stop offset="0.55" stop-color="#0d1f2c"/>
+      <stop offset="1" stop-color="#060d14"/>
+    </radialGradient>
+    <linearGradient id="hub" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#5dffb0"/>
+      <stop offset="1" stop-color="#36d1ff"/>
+    </linearGradient>
+    <filter id="glow" x="-30%" y="-30%" width="160%" height="160%">
+      <feGaussianBlur stdDeviation="12" result="b"/>
+      <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+  </defs>
+  <rect width="1024" height="1024" fill="url(#bg)"/>
+
+  <!-- links from the hub to six ports -->
+  <g stroke="#36d1ff" stroke-opacity="0.55" stroke-width="14" stroke-linecap="round">
+    <line x1="512" y1="400" x2="512" y2="150"/>
+    <line x1="512" y1="400" x2="263" y2="256"/>
+    <line x1="512" y1="400" x2="761" y2="256"/>
+    <line x1="512" y1="400" x2="263" y2="544"/>
+    <line x1="512" y1="400" x2="761" y2="544"/>
+    <line x1="512" y1="400" x2="512" y2="650"/>
+  </g>
+  <!-- ports: green = listening, blue = connected -->
+  <g filter="url(#glow)">
+    <circle cx="512" cy="150" r="46" fill="#5dffb0"/>
+    <circle cx="263" cy="256" r="40" fill="#36d1ff"/>
+    <circle cx="761" cy="256" r="40" fill="#5dffb0"/>
+    <circle cx="263" cy="544" r="40" fill="#3d7bff"/>
+    <circle cx="761" cy="544" r="40" fill="#36d1ff"/>
+    <circle cx="512" cy="650" r="46" fill="#3d7bff"/>
+  </g>
+  <!-- hub: a socket -->
+  <g filter="url(#glow)">
+    <rect x="402" y="300" width="220" height="200" rx="34" fill="url(#hub)"/>
+  </g>
+  <path d="M 452 352 h 120 v 70 h -24 v 30 h -72 v -30 h -24 z" fill="#0b1a24"/>
+  <g fill="#5dffb0">
+    <rect x="470" y="362" width="12" height="26" rx="3"/>
+    <rect x="492" y="362" width="12" height="26" rx="3"/>
+    <rect x="514" y="362" width="12" height="26" rx="3"/>
+    <rect x="536" y="362" width="12" height="26" rx="3"/>
+  </g>
+
+  <text x="512" y="878" text-anchor="middle" fill="#ffffff"
+        font-family="DejaVu Sans, Carlito, sans-serif" font-weight="700"
+        font-size="168" letter-spacing="-4">Net<tspan fill="#5dffb0">Dis</tspan></text>
+</svg>

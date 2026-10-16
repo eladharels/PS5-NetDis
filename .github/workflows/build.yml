@@ -1,0 +1,82 @@
+name: ci
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+    inputs:
+      payload:
+        description: Payload to send to the console
+        type: choice
+        options: [NetDis.elf]
+        default: NetDis.elf
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    env:
+      PS5_PAYLOAD_SDK: /opt/ps5-payload-sdk
+      LLVM_CONFIG: /usr/bin/llvm-config-18
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install toolchain
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq clang-18 lld-18 llvm-18 wget unzip python3
+
+      - name: Install PS5 payload SDK
+        run: |
+          wget -q https://github.com/ps5-payload-dev/sdk/releases/latest/download/ps5-payload-sdk.zip
+          sudo unzip -q -d /opt ps5-payload-sdk.zip
+
+      - name: Build ELF files
+        run: make
+
+      - name: Host tests
+        run: make check
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: NetDis
+          path: |
+            *.elf
+
+  # Sends a payload to the console's ELF loader. Runs only when the repository
+  # variable PS5_HOST is set (Settings > Secrets and variables > Actions >
+  # Variables), and never for pull requests.
+  #
+  # GitHub's cloud runners cannot reach a console on a home network, so with
+  # the default runner this job reports the console as unreachable and skips
+  # the send. Set the PS5_RUNNER variable to the label of a self-hosted runner
+  # on the console's network to deploy for real.
+  deploy:
+    needs: build
+    if: github.event_name != 'pull_request' && vars.PS5_HOST != ''
+    runs-on: ${{ vars.PS5_RUNNER || 'ubuntu-24.04' }}
+    env:
+      PS5_HOST: ${{ vars.PS5_HOST }}
+      PS5_PORT: ${{ vars.PS5_PORT || '9021' }}
+      PAYLOAD: ${{ inputs.payload || 'NetDis.elf' }}
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: NetDis
+
+      - name: Check the console is reachable
+        id: reach
+        run: |
+          if timeout 5 bash -c "exec 3<>/dev/tcp/$PS5_HOST/$PS5_PORT" 2>/dev/null; then
+            echo "ok=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "ok=false" >> "$GITHUB_OUTPUT"
+            echo "::warning::No ELF loader at $PS5_HOST:$PS5_PORT from this runner; skipping deploy. Cloud runners can't reach a home network."
+          fi
+
+      - name: Send ${{ env.PAYLOAD }} to the console
+        if: steps.reach.outputs.ok == 'true'
+        run: |
+          command -v socat >/dev/null || { sudo apt-get update -qq && sudo apt-get install -y -qq socat; }
+          # The loader streams the payload's output back. fps60 keeps running,
+          # so stop listening after a while; the payload is unaffected.
+          timeout 30 socat -t 20 - "TCP:$PS5_HOST:$PS5_PORT" < "$PAYLOAD" || [ $? -eq 124 ]

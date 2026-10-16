@@ -1,0 +1,123 @@
+/* Shared look of the payload pages. Each page adds its own styles for its
+   own tabs. */
+:root {
+  --bg: #f6f7f9; --card: #ffffff; --text: #16181d; --muted: #616875;
+  --line: #e1e4e9; --accent: #2557d6; --ok: #1f7a43; --okbg: #e3f4ea;
+  --warn: #8a5a00; --warnbg: #fbf0d9; --bad: #a12a2a; --badbg: #f9e2e2;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #111317; --card: #1a1d23; --text: #e8eaee; --muted: #9aa1ad;
+    --line: #2b2f37; --accent: #7aa2ff; --ok: #6fd39a; --okbg: #17321f;
+    --warn: #f0c060; --warnbg: #3a2e12; --bad: #f08a8a; --badbg: #3a1717;
+  }
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--text);
+       font: 15px/1.45 system-ui, -apple-system, "Segoe UI", sans-serif; }
+main { max-width: 760px; margin: 0 auto; padding: 16px; }
+header { display: flex; align-items: center; justify-content: space-between;
+         gap: 12px; flex-wrap: wrap; }
+.brand { display: flex; align-items: center; gap: 10px; }
+.brand img { width: 34px; height: 34px; border-radius: 8px; }
+h1 { font-size: 22px; margin: 0; }
+h2 { font-size: 16px; margin: 22px 0 8px; }
+.sub { color: var(--muted); font-size: 13px; }
+.bar { display: flex; gap: 8px; margin: 14px 0; flex-wrap: wrap; align-items: center; }
+input[type=search] { flex: 1 1 200px; min-width: 0; padding: 9px 11px;
+       border: 1px solid var(--line); border-radius: 8px;
+       background: var(--card); color: var(--text); font: inherit; }
+button, select { padding: 9px 12px; border: 1px solid var(--line);
+       border-radius: 8px; background: var(--card); color: var(--text);
+       font: inherit; cursor: pointer; }
+button:disabled { opacity: .6; cursor: default; }
+button.danger { color: var(--bad); }
+.card { background: var(--card); border: 1px solid var(--line);
+        border-radius: 10px; padding: 12px 14px; margin-bottom: 10px; }
+.note { color: var(--muted); font-size: 13px; overflow-wrap: anywhere; }
+.meta { color: var(--muted); font-size: 13px; white-space: nowrap; }
+.chip { display: inline-block; font-size: 12px; padding: 1px 8px;
+        border-radius: 999px; margin-left: 6px; vertical-align: 1px;
+        white-space: nowrap; }
+.chip.ok { color: var(--ok); background: var(--okbg); }
+.chip.warn { color: var(--warn); background: var(--warnbg); }
+.chip.bad { color: var(--bad); background: var(--badbg); }
+.chip.info { color: var(--accent); background: color-mix(in srgb, var(--accent) 14%, transparent); }
+.empty { color: var(--muted); text-align: center; padding: 24px 8px; }
+.hint { color: var(--muted); font-size: 13px; margin-top: 18px; }
+[hidden] { display: none !important; }
+#error { display: none; color: var(--bad); background: var(--badbg);
+         padding: 10px 12px; border-radius: 8px; margin: 10px 0; }
+
+/* switches */
+.switch { position: relative; flex: none; width: 50px; height: 30px; }
+.switch input { opacity: 0; width: 0; height: 0; }
+.slider { position: absolute; inset: 0; border-radius: 999px;
+          background: var(--line); transition: background .15s; }
+.slider::before { content: ""; position: absolute; width: 24px; height: 24px;
+          left: 3px; top: 3px; border-radius: 50%; background: #fff;
+          transition: transform .15s; box-shadow: 0 1px 2px rgba(0,0,0,.3); }
+.switch input:checked + .slider { background: var(--accent); }
+.switch input:checked + .slider::before { transform: translateX(20px); }
+.switch input:disabled + .slider { opacity: .4; }
+.switch input:focus-visible + .slider { outline: 2px solid var(--accent);
+          outline-offset: 2px; }
+
+/* tabs */
+.tabs { display: flex; gap: 4px; margin-top: 14px;
+        border-bottom: 1px solid var(--line); overflow-x: auto; }
+.tab { border: 0; border-bottom: 2px solid transparent; border-radius: 0;
+       background: none; padding: 8px 14px; color: var(--muted);
+       font-weight: 500; white-space: nowrap; }
+.tab[aria-selected="true"] { color: var(--text); border-bottom-color: var(--accent); }
+.tab .count { font-size: 12px; color: var(--bad); margin-left: 4px; }
+
+/* logs tab */
+.log-tools { display: flex; gap: 8px; margin: 14px 0 8px; flex-wrap: wrap;
+             align-items: center; }
+.log-tools label { display: flex; gap: 6px; align-items: center;
+                   color: var(--muted); font-size: 14px; }
+.log-tools a { color: var(--accent); font-size: 14px; }
+.log-status { color: var(--muted); font-size: 13px; margin-bottom: 6px; }
+.logbox { background: var(--card); border: 1px solid var(--line);
+          border-radius: 10px; padding: 8px 10px; height: 65vh;
+          overflow: auto; font: 12px/1.5 ui-monospace, SFMono-Regular,
+          Menlo, Consolas, monospace; }
+.ln { white-space: pre-wrap; overflow-wrap: anywhere; padding: 1px 0; }
+.ln .t { color: var(--muted); }
+.ln .l { display: inline-block; width: 5.5ch; font-weight: 600; }
+.ln.debug .l { color: var(--muted); }
+.ln.info .l { color: var(--accent); }
+.ln.warn .l { color: var(--warn); }
+.ln.error .l { color: var(--bad); }
+.ln.warn { background: var(--warnbg); }
+.ln.error { background: var(--badbg); }
+
+/* settings tab */
+.set-row { display: flex; justify-content: space-between; align-items: center;
+           gap: 16px; padding: 12px 0; border-top: 1px solid var(--line); }
+.set-row:first-child { border-top: 0; }
+.set-row h3 { font-size: 15px; margin: 0 0 2px; }
+.set-row .btns { display: flex; gap: 8px; flex-wrap: wrap; justify-content: flex-end; }
+dl.info { display: grid; grid-template-columns: max-content 1fr; gap: 6px 16px;
+          margin: 0; font-size: 14px; }
+dl.info dt { color: var(--muted); }
+dl.info dd { margin: 0; overflow-wrap: anywhere; }
+
+/* The tile opens the page in the console's browser on a TV, driven by a
+   controller cursor: wider layout, bigger targets, clear focus. */
+button:focus-visible, select:focus-visible, input:focus-visible,
+a:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
+@media (min-width: 1100px) {
+  body { font-size: 18px; }
+  main { max-width: 1400px; padding: 28px 40px; }
+  h1 { font-size: 30px; }
+  .brand img { width: 44px; height: 44px; }
+  .tab { padding: 12px 22px; font-size: 18px; }
+  button, select, input[type=search] { padding: 12px 16px; }
+  .switch { width: 64px; height: 38px; }
+  .slider::before { width: 30px; height: 30px; left: 4px; top: 4px; }
+  .switch input:checked + .slider::before { transform: translateX(26px); }
+  .note, .meta, .chip, .sub, .log-status { font-size: 15px; }
+  .logbox { font-size: 14px; height: 70vh; }
+}

@@ -1,0 +1,321 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>NetDis</title>
+<link rel="icon" href="/icon.png">
+<link rel="stylesheet" href="/ui/common.css">
+<style>
+  .stats { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr));
+           gap: 10px; margin: 14px 0 4px; }
+  .stat { background: var(--card); border: 1px solid var(--line);
+          border-radius: 10px; padding: 10px 12px; }
+  .stat b { display: block; font-size: 22px; font-variant-numeric: tabular-nums; }
+  .stat span { color: var(--muted); font-size: 13px; }
+  .updated { color: var(--muted); font-size: 13px; margin-left: auto; }
+  table.socks { width: 100%; border-collapse: collapse; background: var(--card);
+                border: 1px solid var(--line); border-radius: 10px;
+                overflow: hidden; font-size: 14px; }
+  .socks th, .socks td { text-align: left; padding: 8px 10px;
+                         border-top: 1px solid var(--line); vertical-align: top; }
+  .socks th { border-top: 0; color: var(--muted); font-weight: 500; font-size: 13px;
+              cursor: pointer; user-select: none; white-space: nowrap; }
+  .socks th[aria-sort="ascending"]::after { content: " ▲"; }
+  .socks th[aria-sort="descending"]::after { content: " ▼"; }
+  .socks td.num { font-variant-numeric: tabular-nums; font-weight: 600; }
+  .socks .addr { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+                 font-size: 13px; overflow-wrap: anywhere; }
+  .socks .proc { overflow-wrap: anywhere; }
+  .socks .chip { margin-left: 0; margin-right: 4px; }
+  .socks tr.new td { background: var(--okbg); transition: background 2s; }
+  .proc-card h3 { font-size: 15px; margin: 0; overflow-wrap: anywhere; }
+  .proc-head { display: flex; justify-content: space-between; gap: 8px; align-items: baseline; }
+  .ports { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+  .port { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+          font-size: 13px; border: 1px solid var(--line); border-radius: 6px;
+          padding: 2px 8px; }
+  .port.listen { border-color: var(--ok); color: var(--ok); }
+  @media (min-width: 1100px) {
+    .socks { font-size: 16px; }
+    .socks .addr { font-size: 15px; }
+    .stat b { font-size: 28px; }
+    #procs { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr));
+             gap: 14px; align-items: start; }
+    #procs .card { margin-bottom: 0; }
+  }
+  /* Phones: one card per socket instead of a wide table. */
+  @media (max-width: 640px) {
+    .stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    table.socks, .socks tbody, .socks tr, .socks td { display: block; }
+    .socks thead { display: none; }
+    table.socks { border: 0; background: none; }
+    .socks tr { background: var(--card); border: 1px solid var(--line);
+                border-radius: 10px; margin-bottom: 8px; padding: 6px 0; }
+    .socks td { border-top: 0; padding: 3px 12px; }
+    .socks td::before { content: attr(data-label); color: var(--muted);
+                        font-size: 12px; display: inline-block; width: 6.5em; }
+  }
+</style>
+</head>
+<body>
+<main>
+  <header>
+    <div class="brand"><img src="/icon.png" alt=""><h1>NetDis</h1></div>
+    <span class="sub" id="summary">Loading…</span>
+  </header>
+  <nav class="tabs" id="tabs"></nav>
+  <div id="error"></div>
+
+  <section id="tab-ports" role="tabpanel">
+    <div class="stats">
+      <div class="stat"><b id="st-listen">–</b><span>listening ports</span></div>
+      <div class="stat"><b id="st-network">–</b><span>reachable from your network</span></div>
+      <div class="stat"><b id="st-conn">–</b><span>connections</span></div>
+      <div class="stat"><b id="st-procs">–</b><span>processes with sockets</span></div>
+    </div>
+    <div class="bar">
+      <select id="view" aria-label="View">
+        <option value="listen">Listening ports</option>
+        <option value="conn">Connections</option>
+        <option value="all">All sockets</option>
+      </select>
+      <select id="proto" aria-label="Protocol">
+        <option value="">TCP and UDP</option>
+        <option value="tcp">TCP</option>
+        <option value="udp">UDP</option>
+      </select>
+      <input type="search" id="search" placeholder="Search port, address or process"
+             aria-label="Search sockets">
+      <button id="pause" type="button" aria-pressed="false">Pause</button>
+      <span class="updated" id="updated"></span>
+    </div>
+    <div id="table"></div>
+    <p class="hint">
+      <b>Network</b> means the port accepts connections from other devices on
+      your network; <b>This console</b> means only programs on the PS5 can
+      reach it. "Usually" is a hint from the port number; the process column
+      shows what actually owns the socket.
+    </p>
+  </section>
+
+  <section id="tab-procs" role="tabpanel" hidden>
+    <div class="bar">
+      <input type="search" id="psearch" placeholder="Search processes or ports"
+             aria-label="Search processes">
+    </div>
+    <div id="procs"></div>
+  </section>
+</main>
+
+<script src="/ui/common.js"></script>
+<script>
+"use strict";
+const { $, el, chip, call, showError } = App;
+let data = null;
+let paused = false;
+let seen = null;          // socket keys from the previous refresh
+let fresh = new Set();    // keys that appeared in the latest refresh
+const sort = { listen: ["lport", 1], conn: ["proc", 1], all: ["proc", 1] };
+
+const keyOf = (s) => [s.proto, s.laddr, s.lport, s.raddr, s.rport, s.pid, s.fd].join("|");
+// UDP has no listen state: a bound, unconnected socket receives from anyone.
+const isListen = (s) => s.proto === "tcp" ? s.state === "LISTEN" : !s.raddr && s.lport > 0;
+const isConn = (s) => !!s.raddr;
+const owner = (s) => s.pid < 0 ? s.proc : s.proc + (s.tid ? " · " + s.tid : "");
+const hostPort = (a, p) => (a.includes(":") ? "[" + a + "]" : a) + ":" + p;
+
+function scopeChip(s) {
+  if (s.scope === "any") return chip("warn", "Network");
+  if (s.scope === "loopback") return chip("ok", "This console");
+  return chip("info", "One address");
+}
+
+async function refresh() {
+  if (paused) return;
+  try {
+    data = await call("GET", "/api/sockets");
+    const keys = new Set(data.sockets.map(keyOf));
+    fresh = seen ? new Set([...keys].filter((k) => !seen.has(k))) : new Set();
+    seen = keys;
+    showError("");
+    $("updated").textContent = "Updated " + new Date().toTimeString().slice(0, 8);
+    render();
+  } catch (e) {
+    showError("Can't reach NetDis on the console: " + e.message);
+  }
+}
+
+function matches(s, q) {
+  if (!q) return true;
+  return [s.proto, s.laddr, s.lport, s.raddr, s.rport, s.state, s.proc, s.tid,
+          s.known, s.pid].join(" ").toLowerCase().includes(q);
+}
+
+function columns(view) {
+  const local = { key: "lport", label: view === "listen" ? "Port" : "Local",
+    cell: (s, td) => {
+      if (view === "listen") { td.className = "num"; td.textContent = s.lport; }
+      else { td.className = "addr"; td.textContent = hostPort(s.laddr, s.lport); }
+    } };
+  const proto = { key: "proto", label: "Proto",
+    cell: (s, td) => { td.textContent = s.proto.toUpperCase() + (s.ipv6 ? "6" : ""); } };
+  const proc = { key: "proc", label: "Process",
+    cell: (s, td) => { td.className = "proc"; td.textContent = owner(s) +
+      (s.pid >= 0 ? " (pid " + s.pid + ")" : ""); } };
+  if (view === "listen") {
+    return [local, proto,
+      { key: "scope", label: "Reachable from",
+        cell: (s, td) => { td.append(scopeChip(s));
+          if (s.scope === "address") td.append(el("span", "addr", s.laddr)); } },
+      proc,
+      { key: "known", label: "Usually", cell: (s, td) => { td.textContent = s.known; } }];
+  }
+  return [proto, local,
+    { key: "raddr", label: "Remote", cell: (s, td) => {
+        td.className = "addr";
+        td.textContent = s.raddr ? hostPort(s.raddr, s.rport) : "–"; } },
+    { key: "state", label: "State", cell: (s, td) => { td.textContent = s.state || "–"; } },
+    proc];
+}
+
+function compare(a, b, key) {
+  const x = a[key], y = b[key];
+  if (typeof x === "number" && typeof y === "number") return x - y;
+  return String(x).localeCompare(String(y), undefined, { numeric: true });
+}
+
+function renderTable(rows, view) {
+  const cols = columns(view);
+  const [key, dir] = sort[view];
+  rows.sort((a, b) => dir * compare(a, b, key) || compare(a, b, "lport"));
+
+  const box = $("table");
+  box.replaceChildren();
+  if (!rows.length) {
+    box.append(el("div", "card empty", data.sockets.length
+      ? "No sockets match." : "No sockets found. See the Logs tab."));
+    return;
+  }
+  const table = el("table", "socks");
+  const head = el("tr");
+  for (const c of cols) {
+    const th = el("th", "", c.label);
+    th.tabIndex = 0;
+    if (c.key === key) th.setAttribute("aria-sort", dir > 0 ? "ascending" : "descending");
+    const flip = () => {
+      sort[view] = [c.key, c.key === key ? -dir : 1];
+      render();
+    };
+    th.addEventListener("click", flip);
+    th.addEventListener("keydown", (e) => { if (e.key === "Enter") flip(); });
+    head.append(th);
+  }
+  const thead = el("thead");
+  thead.append(head);
+  table.append(thead);
+  const body = el("tbody");
+  for (const s of rows) {
+    const tr = el("tr", fresh.has(keyOf(s)) ? "new" : "");
+    for (const c of cols) {
+      const td = el("td");
+      td.dataset.label = c.label;
+      c.cell(s, td);
+      tr.append(td);
+    }
+    body.append(tr);
+  }
+  table.append(body);
+  box.append(table);
+}
+
+function renderProcs() {
+  const q = $("psearch").value.trim().toLowerCase();
+  const groups = new Map();
+  for (const s of data.sockets) {
+    const k = s.pid + "|" + s.proc;
+    if (!groups.has(k)) groups.set(k, { s, list: [] });
+    groups.get(k).list.push(s);
+  }
+  const list = [...groups.values()]
+    .filter((g) => !q || g.list.some((s) => matches(s, q)))
+    .sort((a, b) => b.list.filter(isListen).length - a.list.filter(isListen).length ||
+                    a.s.proc.localeCompare(b.s.proc));
+  const box = $("procs");
+  box.replaceChildren();
+  if (!list.length) box.append(el("div", "card empty", "No processes match."));
+  for (const g of list) {
+    const card = el("div", "card proc-card");
+    const head = el("div", "proc-head");
+    head.append(el("h3", "", owner(g.s)),
+      el("span", "meta", (g.s.pid >= 0 ? "pid " + g.s.pid + " · " : "") +
+        g.list.length + " socket" + (g.list.length === 1 ? "" : "s")));
+    card.append(head);
+    const ports = el("div", "ports");
+    for (const s of g.list.sort((a, b) => a.lport - b.lport)) {
+      const listen = isListen(s);
+      const p = el("span", "port" + (listen ? " listen" : ""),
+        s.proto + " " + s.lport + (s.raddr ? " → " + hostPort(s.raddr, s.rport) : "") +
+        (s.state && !listen ? " " + s.state : ""));
+      p.title = listen ? "listening" : s.state || "";
+      ports.append(p);
+    }
+    card.append(ports);
+    box.append(card);
+  }
+}
+
+function render() {
+  if (!data) return;
+  App.renderSettings();
+  const all = data.sockets;
+  const listening = all.filter(isListen);
+  const procs = new Set(all.filter((s) => s.pid >= 0).map((s) => s.pid + "|" + s.proc));
+  $("st-listen").textContent = listening.length;
+  $("st-network").textContent = listening.filter((s) => s.scope === "any").length;
+  $("st-conn").textContent = all.filter(isConn).length;
+  $("st-procs").textContent = procs.size;
+  $("summary").textContent = all.length + " sockets · " + data.procs + " processes inspected";
+
+  const view = $("view").value;
+  const proto = $("proto").value;
+  const q = $("search").value.trim().toLowerCase();
+  const rows = all
+    .filter((s) => view === "all" || (view === "listen" ? isListen(s) : isConn(s)))
+    .filter((s) => !proto || s.proto === proto)
+    .filter((s) => matches(s, q));
+  renderTable(rows, view);
+  renderProcs();
+}
+
+$("view").addEventListener("change", render);
+$("proto").addEventListener("change", render);
+$("search").addEventListener("input", render);
+$("psearch").addEventListener("input", render);
+$("pause").addEventListener("click", () => {
+  paused = !paused;
+  $("pause").textContent = paused ? "Resume" : "Pause";
+  $("pause").setAttribute("aria-pressed", String(paused));
+  if (!paused) refresh();
+});
+
+App.init({
+  name: "NetDis",
+  tabs: [{ id: "ports", label: "Ports" }, { id: "procs", label: "Processes" }],
+  logTools: [{
+    label: "Diagnose",
+    title: "Log how sockets are collected and every socket found",
+    onClick: () => call("POST", "/api/diagnose"),
+  }],
+  about: () => data ? [
+    ["TCP states", data.stateSource || "unknown"],
+    ["Processes", data.procs + " inspected" +
+      (data.procErrors ? ", " + data.procErrors + " unreadable" : "")],
+  ] : [],
+});
+
+refresh();
+setInterval(refresh, 2000);
+</script>
+</body>
+</html>
