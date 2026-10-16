@@ -4,6 +4,10 @@
 #include "service.h"
 
 
+#ifndef APP_VERSION
+#define APP_VERSION "dev"  // set from VERSION by the Makefile
+#endif
+
 #ifndef NETDIS_DIR
 #define NETDIS_DIR "/data/netdis"
 #endif
@@ -13,6 +17,7 @@ int
 main(void) {
   service_info_t info = {
     .name = "NetDis",
+    .version = APP_VERSION,
     .proc_name = "NetDis.elf",
     .data_dir = NETDIS_DIR,
     .port = 8070,

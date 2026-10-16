@@ -10,7 +10,10 @@ endif
 
 BUILD := build
 
-CFLAGS := -Wall -Werror -g -Icommon
+# Release version; releases are tagged v$(VERSION). Built into the ELF.
+VERSION := $(shell cat VERSION)
+
+CFLAGS := -Wall -Werror -g -Icommon -DAPP_VERSION=\"$(VERSION)\"
 
 # Shared payload framework: web server, logs, service lifecycle, page assets.
 COMMON_SRCS := common/http.c common/log.c common/util.c common/service.c
@@ -38,7 +41,7 @@ $(BUILD)/netdis_embedded.c: tools/embed.py netdis/ui.html netdis/assets/icon0.pn
 	  netdis_icon_png:bin=netdis/assets/icon0.png \
 	  common_ui_css=common/ui/common.css common_ui_js=common/ui/common.js
 
-NetDis.elf: $(NETDIS_SRCS) netdis/platform_ps5.c $(COMMON_SRCS) $(COMMON_PS5) \
+NetDis.elf: VERSION $(NETDIS_SRCS) netdis/platform_ps5.c $(COMMON_SRCS) $(COMMON_PS5) \
             $(BUILD)/netdis_embedded.c $(NETDIS_HDRS) | sdk
 	$(CC) $(CFLAGS) -o $@ $(NETDIS_SRCS) netdis/platform_ps5.c $(COMMON_SRCS) \
 	  $(COMMON_PS5) $(BUILD)/netdis_embedded.c $(COMMON_LIBS)
@@ -52,6 +55,13 @@ $(BUILD)/test_netdis: $(TEST_SRCS) $(NETDIS_HDRS)
 check: $(BUILD)/test_netdis
 	$(BUILD)/test_netdis
 
+# Release package: the ELF with the README and changelog.
+DIST := $(BUILD)/NetDis-v$(VERSION).zip
+dist: NetDis.elf
+	@mkdir -p $(BUILD)
+	rm -f $(DIST)
+	zip -j $(DIST) NetDis.elf README.md CHANGELOG.md
+
 clean:
 	rm -f *.elf $(BUILD)/*_embedded.c $(BUILD)/test_*
 
@@ -59,4 +69,4 @@ clean:
 test: NetDis.elf | sdk
 	$(PS5_DEPLOY) -h $(PS5_HOST) -p $(PS5_PORT) NetDis.elf
 
-.PHONY: all sdk check clean test
+.PHONY: all sdk check clean test dist

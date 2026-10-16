@@ -1,0 +1,69 @@
+name: release
+
+# Publishes a release when a version tag is pushed:
+#   git tag v1.2.3 && git push origin v1.2.3
+# The tag must match the VERSION file, and CHANGELOG.md must have a
+# "## [1.2.3]" section; it becomes the release notes.
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-24.04
+    env:
+      PS5_PAYLOAD_SDK: /opt/ps5-payload-sdk
+      LLVM_CONFIG: /usr/bin/llvm-config-18
+      SDK_URL: https://github.com/ps5-payload-dev/sdk/releases/download/v0.44/ps5-payload-sdk.zip
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check the tag matches VERSION
+        run: |
+          version="$(cat VERSION)"
+          if [ "$GITHUB_REF_NAME" != "v$version" ]; then
+            echo "::error::Tag $GITHUB_REF_NAME does not match VERSION ($version)"
+            exit 1
+          fi
+          echo "VERSION=$version" >> "$GITHUB_ENV"
+
+      - name: Extract release notes from CHANGELOG.md
+        run: |
+          awk -v v="$VERSION" '
+            $0 ~ "^## \\[" v "\\]" { on = 1; next }
+            on && /^## \[/ { exit }
+            on { print }
+          ' CHANGELOG.md > notes.md
+          if ! grep -q '[^[:space:]]' notes.md; then
+            echo "::error::CHANGELOG.md has no section for $VERSION"
+            exit 1
+          fi
+          cat notes.md
+
+      - name: Install toolchain
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq clang-18 lld-18 llvm-18 wget unzip zip python3 
+
+      - name: Install PS5 payload SDK
+        run: |
+          wget -q "$SDK_URL"
+          sudo unzip -q -d /opt ps5-payload-sdk.zip
+
+      - name: Test, build and package
+        run: |
+          make check
+          make dist
+
+      - name: Publish the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "$GITHUB_REF_NAME" \
+            --title "NetDis v$VERSION" \
+            --notes-file notes.md \
+            NetDis.elf "build/NetDis-v$VERSION.zip"

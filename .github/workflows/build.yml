@@ -27,7 +27,7 @@ jobs:
 
       - name: Install PS5 payload SDK
         run: |
-          wget -q https://github.com/ps5-payload-dev/sdk/releases/latest/download/ps5-payload-sdk.zip
+          wget -q https://github.com/ps5-payload-dev/sdk/releases/download/v0.44/ps5-payload-sdk.zip
           sudo unzip -q -d /opt ps5-payload-sdk.zip
 
       - name: Build ELF files

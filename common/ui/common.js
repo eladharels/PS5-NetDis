@@ -305,6 +305,7 @@ const App = (() => {
     tileRow.button.className = service.tile ? "danger" : "";
 
     const rows = [
+      ["Version", "v" + service.version],
       ["On a phone", service.lanUrl || location.origin + "/"],
       ["Build", service.build],
       ...(opts.about ? opts.about() : []),
