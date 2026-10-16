@@ -14,7 +14,7 @@ First public release.
 - Version number in the notification ("NetDis v1.0.0 running"), the log, and
   Settings > About.
 - Releases with `NetDis.elf` and a zip, built and published by GitHub
-  Actions from the version tag.
+  Actions when a new version reaches `main`.
 - README with screenshots, how it works, troubleshooting and building.
 
 ### Changed

@@ -228,13 +228,17 @@ Version numbers follow [semantic versioning](https://semver.org):
 
 Publishing a new version (for maintainers):
 
-1. Put the new number in `VERSION`, and add a `## [X.Y.Z] - date` section at
-   the top of `CHANGELOG.md`.
-2. Merge the change into `main`.
-3. Tag the merge commit and push the tag: `git tag vX.Y.Z && git push origin vX.Y.Z`.
-4. The *release* workflow checks the tag matches `VERSION`, runs the tests,
-   builds with the pinned SDK (v0.44), and publishes the release with the
-   changelog section as its notes.
+1. In a pull request, put the new number in `VERSION` and add a
+   `## [X.Y.Z] - date` section at the top of `CHANGELOG.md`.
+2. Merge it into `main`.
+3. The *release* workflow then:
+   - runs the tests
+   - builds with the pinned SDK (v0.44)
+   - creates the tag `vX.Y.Z`
+   - publishes the release with the changelog section as its notes
+
+   It skips versions that already have a release. You can also start it by
+   hand from Actions > release > Run workflow.
 
 ## Building from source
 
